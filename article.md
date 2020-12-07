@@ -1,6 +1,6 @@
 # タイトル
 
-## これは何？
+## これは何だろう？
 
 この記事は[DMMグループ Advent Calendar 2020](https://qiita.com/advent-calendar/2020/dmm)の14日目の投稿です。
 
@@ -78,7 +78,7 @@ React360は執筆時点ではWebXRに対応しておらず、開発もほとん�
   <body>
     <div id="canvas"></div>
     <script>
-      <!-- ここにthree.jsのコードを実装していきます。 -->
+     // ここにthree.jsのコードを実装していきます。
     </script>
   </body>
 </html>
@@ -86,11 +86,11 @@ React360は執筆時点ではWebXRに対応しておらず、開発もほとん�
 
 three.jsでは基本的に以下の要素を実装することになります。
 
-- scene ルートとなる3Dシーン
-- camera カメラの位置や種類
-- object 表示したい3Dオブジェクトの形状や材質
-- light 光源の位置や種類
-- renderer 3D空間の情報を2Dのキャンバスに投影するレンダラー
+- `scene` ルートとなる3Dシーン
+- `camera` カメラの位置や種類
+- `light` 光源の位置や種類
+- `object` 表示したい3Dオブジェクトの形状や材質
+- `renderer` 3D空間の情報を2Dのキャンバスに投影するレンダラー
 
 そして最後にVRヘッドセットへのレンダリング処理を追加することでWebVRが実現されます。
 
@@ -102,15 +102,14 @@ three.jsでは基本的に以下の要素を実装することになります。
   function init() {
     createScene()
     createCamera()
-    createObject()
     createLight()
+    createObject()
     createRenderer()
-    
+
     // 描画メソッド
     render()
   }
 </script>
-
 ```
 
 
@@ -121,14 +120,13 @@ three.jsでは基本的に以下の要素を実装することになります。
 ```html:index.html
 <script>
   ~ 省略 ~
-  
+
   var scene
 
   function createScene() {
     scene = new THREE.Scene()
   }
 </script>
-
 ```
 
 ### camera
@@ -147,7 +145,7 @@ nearとfarの値を設定します。
 ```html:index.html
 <script>
   ~ 省略 ~
-  
+
   var camera
 
   function createCamera() {
@@ -159,7 +157,29 @@ nearとfarの値を設定します。
     )
   }
 </script>
+```
 
+
+### light
+
+次にライトを作成します。
+ライトがないとオブジェクトを配置しても見えないので注意してください。
+
+ここでは基本的な`DirectionalLight`を配置します。
+DirectionalLightは日本語で言うと平行光源で、太陽のような十分遠い位置にある光源からの光をシュミレートします。
+
+
+```html:index.html
+<script>
+  ~ 省略 ~
+
+  var light
+
+  function createLight() {
+    light = new THREE.DirectionalLight(0xFFFFFF, 1)
+    scene.add(light)
+  }
+</script>
 ```
 
 ### object
@@ -168,7 +188,37 @@ nearとfarの値を設定します。
 今回はお寿司を作ってみましょう。
 
 
-### threejsにおけるvr対応 
+### renderer
+
+最後にレンダリングを行うレンダラーオブジェクトを作成します。
+
+
+```html:index.html
+<script>
+  ~ 省略 ~
+
+  var renderer
+
+  function createRenderer() {
+    renderer = new THREE.WebGLRenderer({
+      alpha: true,
+      antialias: true
+    })
+
+    renderer.setSize(WIDTH, HEIGHT)
+    renderer.shadowMap.enabled = true
+  }
+</script>
+```
+
+
+### レンダリング
+
+ここまで準備してやっとレンダリングができる状態になりました。
+先ほど作成したレンダラーオブジェクトを再帰的に呼び出すことで動きを表現します。
+
+
+### threejsにおけるvr対応
 https://ics.media/entry/18793/
 
 ## ハンズオン2: A-Frame

@@ -1,11 +1,14 @@
-# タイトル
+# A-FrameはWebVRをどれほど手軽にしたか
 
-## これは何だろう？
+
+## これは何？
 
 この記事は[DMMグループ Advent Calendar 2020](https://qiita.com/advent-calendar/2020/dmm)の14日目の投稿です。
 
 業務でWebVRに触る機会があり、おもしろいと思ったので布教の意味も込めて本記事を書きました！
-読み終えた後にはWebVRの基本を分かったような気になれる、、ようがんばります。
+
+three.jsとA-Frameでの実装の比較によって、WebVRがどれほど手軽になったのかを説明します。
+読み終えた後にはWebVRの基本も身につく、、といいなぁ。
 
 また本記事は、Webの3Dプログラミングにはじめて触れる方を対象としています。
 
@@ -49,7 +52,7 @@ three.jsも十分直感的ですが、A-Frameを使えばhtmlのみで3D表現�
 
 以上のライブラリ群の関係性を図にするとこんな感じです。
 
-![Webの3D・VRライブラリの関係性](./graphic_libraries.png "図 Webの3D・VRライブラリの関係性")
+![Webの3D・VRライブラリの関係性](./3d_libraries.png "図 Webの3D・VRライブラリの関係性")
 
 ちなみに、少し前にWebVRを触ったことのある人は`React360`というライブラリを使ったことがあるかもしれません。
 React360は執筆時点ではWebXRに対応しておらず、開発もほとんど停滞しているようです。（おそらく滅びたようです）
@@ -59,29 +62,126 @@ React360は執筆時点ではWebXRに対応しておらず、開発もほとん�
 
 ## ハンズオン
 
-少しでも理解しやすいよう、簡単なハンズオンを用意しました！
+エンジニアはコードで語れ！ということで、簡単なハンズオンを用意しました。
 執筆時点のバージョンは以下です。
 
 - [three.js](https://threejs.org/) r123
-- [A-Frame](https://aframe.io/) v1.0.4
+- [A-Frame](https://aframe.io/) v1.1.0
 
+一応リポジトリも置いておきます。
+<a href="https://github.com/inoue0124/webxr-handson"><img src="https://github-link-card.s3.ap-northeast-1.amazonaws.com/inoue0124/webxr-handson.png" width="460px"></a>
 
 ### three.js編
 
-最初にthee.jsをCDN経由で読み込み、3Dを表示する先のキャンバスとなるdivタグを作ります。
+まずはthree.jsです。
+最初にコード全体を示します！
 
-```html:index.html
+```html:three.html
 <html>
   <head>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r123/three.min.js"></script>
+    <script src="./VRButton.js"></script>
+    <style>
+      #canvas {
+        width: 100%;
+        height: 100%;
+      }
+    </style>
   </head>
   <body>
     <div id="canvas"></div>
     <script>
-     // ここにthree.jsのコードを実装していきます。
+      window.addEventListener('load', init, false)
+
+      let scene, camera, renderer
+      let geometry, material, mesh
+
+      function init() {
+        createScene()
+        createCamera()
+        createLight()
+        createObject()
+        createRenderer()
+
+        // 描画メソッド
+        render()
+      }
+
+      function createScene() {
+        scene = new THREE.Scene()
+      }
+
+      function createCamera() {
+        // (fieldOfView, aspectRatio, near, far)
+        camera = new THREE.PerspectiveCamera(90, window.innerWidth / window.innerHeight, 1, 10000)
+        camera.position.z = 3
+      }
+
+      function createLight() {
+        const dirLight = new THREE.DirectionalLight(0xFFFFFF, 0.5)
+        dirLight.position.set(1, 10, 10)
+        
+        const ambLight = new THREE.AmbientLight(0x4CC3D9);
+        
+        scene.add(dirLight, ambLight)
+      }
+
+      function createObject() {
+        geometry = new THREE.BoxGeometry()
+        material = new THREE.MeshLambertMaterial({color: 0x4CC3D9})
+        mesh = new THREE.Mesh(geometry, material)
+        scene.add(mesh)
+      }
+
+      function createRenderer() {
+        renderer = new THREE.WebGLRenderer({
+          alpha: true,
+          antialias: true
+        })
+        renderer.setSize(window.innerWidth, window.innerHeight)
+        document.getElementById('canvas').appendChild(renderer.domElement)
+        document.body.appendChild( VRButton.createButton(renderer))
+        renderer.xr.enabled = true;
+      }
+
+      function render() {
+        renderer.render(scene, camera)
+        mesh.rotation.z += 0.02
+        mesh.rotation.y += 0.02
+        renderer.setAnimationLoop(render)
+      }
     </script>
   </body>
 </html>
+```
+
+これを実行するとこんな感じになります。
+<p class="codepen" data-height="400" data-theme-id="light" data-default-tab="result" data-user="inoue0124" data-slug-hash="QWKdWyG" style="height: 359px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; border: 2px solid; margin: 1em 0; padding: 1em;" data-pen-title="threejs-example">
+  <span>See the Pen <a href="https://codepen.io/inoue0124/pen/QWKdWyG">
+  threejs-example</a> by Yusuke Inoue (<a href="https://codepen.io/inoue0124">@inoue0124</a>)
+  on <a href="https://codepen.io">CodePen</a>.</span>
+</p>
+<script async src="https://cpwebassets.codepen.io/assets/embed/ei.js"></script>
+
+
+かわいいかわいい箱が現れました！
+とっても簡単ですね！
+
+では早速、解説していきたいと思います！
+
+
+#### 解説
+
+最初にthee.jsをCDN経由で読み込み、3Dを表示する先のキャンバスとなるdivタグを作ります。
+
+```html:three.html
+<head>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r123/three.min.js"></script>
+</head>
+  <body>
+    <div id="canvas"></div>
+    <script>
+     // ここからthree.jsのコード
 ```
 
 three.jsでは基本的に以下の要素を実装することになります。
@@ -89,47 +189,27 @@ three.jsでは基本的に以下の要素を実装することになります。
 - `scene` ルートとなる3Dシーン
 - `camera` カメラの位置や種類
 - `light` 光源の位置や種類
-- `object` 表示したい3Dオブジェクトの形状や材質
+- `object` 表示したい3Dオブジェクトの形状（`geometry`）や材質（`material`）
 - `renderer` 3D空間の情報を2Dのキャンバスに投影するレンダラー
 
 そして最後にVRヘッドセットへのレンダリング処理を追加することでWebVRが実現されます。
 
-
-では、以下のような感じでそれぞれ関数に分けて実装していきたいと思います。
-
-```html:index.html
-<script>
-  function init() {
-    createScene()
-    createCamera()
-    createLight()
-    createObject()
-    createRenderer()
-
-    // 描画メソッド
-    render()
-  }
-</script>
-```
+それぞれ詳しく見ていきましょう。
 
 
-### scene
+#### scene
 
 シーンを作るのは簡単です。
+THREE.Scene()でインスタンス化してあげるだけです。
 
-```html:index.html
-<script>
-  ~ 省略 ~
-
-  var scene
-
-  function createScene() {
-    scene = new THREE.Scene()
-  }
-</script>
+```html:three.html
+function createScene() {
+  scene = new THREE.Scene()
+}
 ```
 
-### camera
+
+#### camera
 
 続いてカメラを作ります。カメラは一番基本的な遠近感のある`PerspectiveCamera`を用います。
 コンストラクターには、視野角（fieldOfView）、アスペクト比の他に、クリッピングの設定値を渡します。
@@ -142,93 +222,198 @@ nearとfarの値を設定します。
 ![PerspectiveCameranの設定値](./camera.jpg "図 PerspectiveCameranの設定値")
 
 
-```html:index.html
-<script>
-  ~ 省略 ~
-
-  var camera
-
-  function createCamera() {
-    camera = new THREE.PerspectiveCamera(
-      45, # fieldOfView
-      window.innerWidth / window.innerHeight, # aspectRatio
-      1, # nera
-      10000 # far
-    )
-  }
-</script>
+```html:three.html
+function createCamera() {
+  // (fieldOfView, aspectRatio, near, far)
+  camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 10000)
+  camera.position.z = 3
+}
 ```
 
+カメラのz座標を3としているのは、0だと原点の位置でありオブジェクトと重なって見えなくなってしまうからです。
+イメージとしては手前に3メートルだけ引いているイメージです。
 
-### light
+
+#### light
 
 次にライトを作成します。
-ライトがないとオブジェクトを配置しても見えないので注意してください。
+ライトがないとオブジェクトを配置しても何も見えないので注意してください。
 
-ここでは基本的な`DirectionalLight`を配置します。
+ここでは`DirectionalLight`と`AmbientLight`を配置します。
+
 DirectionalLightは日本語で言うと平行光源で、太陽のような十分遠い位置にある光源からの光をシュミレートします。
 
+AmbientLightはシーン全体を照らす環境光のようなものです。
+シーン全体を均一に明るくしてくれます。
 
-```html:index.html
-<script>
-  ~ 省略 ~
-
-  var light
-
-  function createLight() {
-    light = new THREE.DirectionalLight(0xFFFFFF, 1)
-    scene.add(light)
-  }
-</script>
+```html:three.html
+function createLight() {
+  const dirLight = new THREE.DirectionalLight(0xFFFFFF, 0.5)
+  dirLight.position.set(1, 10, 10)
+  
+  const ambLight = new THREE.AmbientLight(0x4CC3D9);
+  
+  scene.add(dirLight, ambLight)
+}
 ```
 
-### object
+作成したライトをシーンに追加するのを忘れないようにしてください。
+
+
+#### object
 
 次に表示したい物体を作成します。
-今回はお寿司を作ってみましょう。
+今回は基本の立方体、`Box`で行きます。
+
+```html:three.html
+function createObject() {
+  geometry = new THREE.BoxGeometry()
+  material = new THREE.MeshLambertMaterial({color: 0x4CC3D9})
+  mesh = new THREE.Mesh(geometry, material)
+  scene.add(mesh)
+}
+```
+
+ここで注目したいのが、形状を決める`geometry`と、材質を決める`material`をそれぞれ定義し、それを組み合わせて`mesh`オブジェクトを生成しています。
+3Dプログラミングで
+
+three.jsでは、立方体や球、円柱など基本的なgeometryはあらかじめ用意されています。
+
+またmaterialとしては、光をほとんど反射しない`MeshBasicMaterial`や、めっちゃ反射する`MeshPhongMaterial`などがあります。
 
 
-### renderer
+#### renderer
 
 最後にレンダリングを行うレンダラーオブジェクトを作成します。
 
-
-```html:index.html
-<script>
-  ~ 省略 ~
-
-  var renderer
-
-  function createRenderer() {
-    renderer = new THREE.WebGLRenderer({
-      alpha: true,
-      antialias: true
-    })
-
-    renderer.setSize(WIDTH, HEIGHT)
-    renderer.shadowMap.enabled = true
-  }
-</script>
+```html:three.html
+function createRenderer() {
+  renderer = new THREE.WebGLRenderer({
+    alpha: true,
+    antialias: true
+  })
+  renderer.setSize(window.innerWidth, window.innerHeight)
+  document.getElementById('canvas').appendChild(renderer.domElement)
+}
 ```
 
+レンダラーにサイズを設定し、canvasに追加するのを忘れないようにしてください。
 
-### レンダリング
+
+#### レンダリング
 
 ここまで準備してやっとレンダリングができる状態になりました。
-先ほど作成したレンダラーオブジェクトを再帰的に呼び出すことで動きを表現します。
+先ほど作成したレンダラーオブジェクトを再帰的に呼び出します。
 
 
-### threejsにおけるvr対応
-https://ics.media/entry/18793/
+```html:three.html
+function render() {
+  renderer.render(scene, camera)
+  mesh.rotation.z += 0.02
+  mesh.rotation.y += 0.02
+  requestAnimationFrame(render)
+}
+```
 
-## ハンズオン2: A-Frame
-### aframeで同じことをやる
-### コンポーネント実装
+ここでmeshのrotation（回転）座標をいじることで、立方体が回転する表現をしています。
+
+さて、最後にこれをVR対応させたいと思います。
+
+
+#### threejsにおけるVR対応
+
+VR対応は、こちらの[公式ドキュメント](https://threejs.org/docs/#manual/en/introduction/How-to-create-VR-content)にしたがってやれば簡単にできます。
+
+まず、VRButtonをgithubのexampleから[ダウンロード](https://github.com/mrdoob/three.js/blob/master/examples/jsm/webxr/VRButton.js)します。
+
+そしてそれをインポートしてbodyに突っ込みます。
+
+```three.html
+document.body.appendChild( VRButton.createButton(renderer))
+```
+
+またレンダラーのxrモードをenableにします。
+
+```three.html
+renderer.xr.enabled = true;
+```
+
+あとは、さきほど一番最後のrender関数で`requestAnimationFrame(render)`としていたところを、`renderer.setAnimationLoop(render)`としてあげると、rendererがよしなにVR・2Dの描画を切替えてくれます。
+
+以上の実装をまとめるとレンダリング部分は以下のようになります。
+
+```three.html
+function createRenderer() {
+  renderer = new THREE.WebGLRenderer({
+    alpha: true,
+    antialias: true
+  })
+  renderer.setSize(window.innerWidth, window.innerHeight)
+  document.getElementById('canvas').appendChild(renderer.domElement)
+  document.body.appendChild(VRButton.createButton(renderer)) // 追加
+  renderer.xr.enabled = true // 追加
+}
+
+function render() {
+  renderer.render(scene, camera)
+  mesh.rotation.z += 0.02
+  mesh.rotation.y += 0.02
+  renderer.setAnimationLoop(render) // 変更
+}
+```
+
+なお実際にQuestで試す場合には、ローカルでサーバを立ててQuest browserからアクセスしてください。
+VS Codeを使っているなら、[Live Server](https://marketplace.visualstudio.com/items?itemName=ritwickdey.LiveServer)がオススメです！
+
+SSLでないとQuestからアクセスできないため、オレオレ証明書の作成もお忘れなく。
+
+
+### A-Frame編
+
+続いてA-Frameでの実装を見ていきましょう！
+といっても、A-Frameでは以上の実装をたったこれだけで完結させてしまいます。
+
+```aframe.html
+<html>
+  <head>
+    <script src="https://aframe.io/releases/1.1.0/aframe.min.js"></script>
+  </head>
+  <body>
+    <a-scene>
+      <a-box position="0 1 -3" rotation="0 45 0" color="#4CC3D9"></a-box>
+    </a-scene>
+  </body>
+</html>
+```
+
+<p class="codepen" data-height="400" data-theme-id="light" data-default-tab="result" data-user="inoue0124" data-slug-hash="QWKdwbr" style="height: 419px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; border: 2px solid; margin: 1em 0; padding: 1em;" data-pen-title="aframe-example">
+  <span>See the Pen <a href="https://codepen.io/inoue0124/pen/QWKdwbr">
+  aframe-example</a> by Yusuke Inoue (<a href="https://codepen.io/inoue0124">@inoue0124</a>)
+  on <a href="https://codepen.io">CodePen</a>.</span>
+</p>
+<script async src="https://cpwebassets.codepen.io/assets/embed/ei.js"></script>
+
+ビューティフォー！ですよね。
+たった一行ですべてのオブジェクトの配置と、VR対応までやってくれます。
+
+さらに、方向キーでの移動やマウスによるカメラ操作もできます。
+
+**three.jsなんていらんかったんや**
+（three.jsのラッパーなので、three.jsの知識があればより柔軟なカスタマイズができます。）
+
 
 ## まとめ
 
+本記事ではA-Frameによって3D、およびWebVRがどれほど簡略化されたのかをハンズオンを通して見てみました。
+
+まずはちょーお手軽に入門してみて、色々と遊んでみたらいいと思います。
+
+今後もっと難しいことをやりたくなってきた場合にも、A-Frameにはコンポーネントという概念があって拡張しやすい作りになっています。
+
+また3Dエンジニアはシェーダーを自作してやっと一人前みたいなところもありますが、A-FrameでももちろんWebGLで書いたシェーダーを適用できます。
+
+年末年始のお遊びにはちょうど良いネタかと思いますので、ぜひ！
+
+
 ## 参考サイト
-https://note.com/misaki_mofu/n/n21dccbabae20
-https://tympanus.net/codrops/2016/04/26/the-aviator-animating-basic-3d-scene-threejs/
-https://thebookofshaders.com/02/?lan=jp
-https://www.clicktorelease.com/blog/vertex-displacement-noise-3d-webgl-glsl-three-js/
+https://ics.media/tutorial-three/quickstart/
